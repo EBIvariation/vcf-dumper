@@ -18,43 +18,31 @@
 
 package uk.ac.ebi.eva.vcfdump.regionutils;
 
-import com.lordofthejars.nosqlunit.annotation.UsingDataSet;
-import com.lordofthejars.nosqlunit.mongodb.MongoDbRule;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.core.io.ResourceLoader;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import uk.ac.ebi.eva.commons.core.models.Region;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantWithSamplesAndAnnotationsService;
 import uk.ac.ebi.eva.vcfdump.MongoRepositoryTestConfiguration;
 import uk.ac.ebi.eva.vcfdump.QueryParams;
+import uk.ac.ebi.eva.vcfdump.utils.MongoTestContainerHelper;
+import uk.ac.ebi.eva.vcfdump.utils.MongoTestDataLoader;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.lordofthejars.nosqlunit.mongodb.MongoDbRule.MongoDbRuleBuilder.newMongoDbRule;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = {MongoRepositoryTestConfiguration.class})
-@UsingDataSet(locations = {
-        "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-        "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
-public class RegionFactoryTest {
-
-    @Autowired
-    private ApplicationContext applicationContext;
-
-    @Rule
-    public MongoDbRule mongoDbRule = newMongoDbRule().defaultSpringMongoDb("test-db");
+public class RegionFactoryTest extends MongoTestContainerHelper {
 
     @Autowired
     private VariantWithSamplesAndAnnotationsService variantService;
@@ -62,11 +50,19 @@ public class RegionFactoryTest {
     // this is used for getting just one big region in 'full chromosome' tests
     private static final int BIG_WINDOW_SIZE = 100000000;
 
-    @BeforeClass
-    public static void setUpClass()
-            throws IOException, InterruptedException, URISyntaxException, IllegalAccessException,
-            ClassNotFoundException,
-            InstantiationException {
+    @Autowired
+    private MongoTemplate mongoTemplate;
+
+    @Autowired
+    private ResourceLoader resourceLoader;
+
+    @BeforeEach
+    public void setUpClass() {
+        mongoTemplate.getDb().drop();
+
+        MongoTestDataLoader mongoTestDataLoader = new MongoTestDataLoader(mongoTemplate, resourceLoader);
+        mongoTestDataLoader.load("/db-dump/eva_hsapiens_grch37/files_2_0.json");
+        mongoTestDataLoader.load("/db-dump/eva_hsapiens_grch37/variants_2_0.json");
     }
 
     @Test
@@ -129,8 +125,7 @@ public class RegionFactoryTest {
     }
 
     @Test
-    public void getRegionsForChromosomeWhenRegionQueryIsAFullChromosome()
-            throws IOException {
+    public void getRegionsForChromosomeWhenRegionQueryIsAFullChromosome() {
         // the region filter is just the chromosome used for testing, with no coordinates
         QueryParams query = new QueryParams();
         query.setRegion("22");
@@ -142,9 +137,8 @@ public class RegionFactoryTest {
     }
 
     @Test
-    public void getRegionsForChromosomeWhenRegionQueryStartsWithAFullChromosome()
-            throws IOException {
-        // the chromosome used for testing in in the first in the query, with no coordinates
+    public void getRegionsForChromosomeWhenRegionQueryStartsWithAFullChromosome() {
+        // the chromosome used for testing in the first in the query, with no coordinates
         QueryParams query = new QueryParams();
         query.setRegion("22,23:1000-2000");
         query.setStudies(Arrays.asList("7", "8"));
@@ -155,9 +149,8 @@ public class RegionFactoryTest {
     }
 
     @Test
-    public void getRegionsForChromosomeWhenRegionQueryEndsWithAFullChromosome()
-            throws IOException {
-        // the chromosome used for testing in in the last in the query, with no coordinates
+    public void getRegionsForChromosomeWhenRegionQueryEndsWithAFullChromosome() {
+        // the chromosome used for testing in the last in the query, with no coordinates
         QueryParams query = new QueryParams();
         query.setRegion("1:500-2499,22");
         query.setStudies(Arrays.asList("7", "8"));
@@ -168,8 +161,7 @@ public class RegionFactoryTest {
     }
 
     @Test
-    public void getRegionsForChromosomeWhenRegionQueryContainsAFullChromosome()
-            throws IOException {
+    public void getRegionsForChromosomeWhenRegionQueryContainsAFullChromosome() {
         // the chromosome used for testing in the middle of the query, with no coordinates
         QueryParams query = new QueryParams();
         query.setRegion("1:500-2499,22,21:1000-2000");

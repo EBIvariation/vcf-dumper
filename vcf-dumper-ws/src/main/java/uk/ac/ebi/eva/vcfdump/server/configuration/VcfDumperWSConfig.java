@@ -1,24 +1,20 @@
 package uk.ac.ebi.eva.vcfdump.server.configuration;
 
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
-import springfox.documentation.builders.ApiInfoBuilder;
-import springfox.documentation.builders.RequestHandlerSelectors;
-import springfox.documentation.service.ApiInfo;
-import springfox.documentation.service.Contact;
-import springfox.documentation.spi.DocumentationType;
-import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 @EnableWebMvc
-@EnableSwagger2
-public class VcfDumperWSConfig extends WebMvcConfigurerAdapter {
+public class VcfDumperWSConfig implements WebMvcConfigurer {
 
     @Bean
     public ThreadPoolTaskExecutor mvcAsyncThreadPool() {
@@ -48,24 +44,18 @@ public class VcfDumperWSConfig extends WebMvcConfigurerAdapter {
     }
 
     @Bean
-    public Docket apiConfiguration() {
-        return new Docket(DocumentationType.SWAGGER_2)
-                .pathMapping("/")
-                .apiInfo(apiInfo())
-                .select()
-                .apis(RequestHandlerSelectors.basePackage("uk.ac.ebi.eva.vcfdump.server"))
-                .build();
-    }
-
-    private ApiInfo apiInfo() {
-        return new ApiInfoBuilder()
-                .title("European Variation Archive VCF Dumper REST Web Services API")
-                .contact(new Contact("the European Variation Archive team", "www.ebi.ac.uk/eva",
-                                     "eva-helpdesk@ebi.ac.uk"))
-                .license("Apache License Version 2.0")
-                .licenseUrl("https://www.apache.org/licenses/LICENSE-2.0")
-                .version("1.0")
-                .build();
+    public OpenAPI apiConfiguration() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("European Variation Archive VCF Dumper REST Web Services API")
+                        .version("1.0")
+                        .contact(new Contact()
+                                .name("the European Variation Archive team")
+                                .url("www.ebi.ac.uk/eva")
+                                .email("eva-helpdesk@ebi.ac.uk"))
+                        .license(new License()
+                                .name("Apache License Version 2.0")
+                                .url("https://www.apache.org/licenses/LICENSE-2.0")));
     }
 
 }

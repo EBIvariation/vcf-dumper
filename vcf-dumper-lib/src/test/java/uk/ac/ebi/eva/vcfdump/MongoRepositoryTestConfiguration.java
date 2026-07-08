@@ -18,8 +18,8 @@
  */
 package uk.ac.ebi.eva.vcfdump;
 
-import com.mongodb.MongoClient;
 
+import com.mongodb.client.MongoClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.data.mongo.AutoConfigureDataMongo;
@@ -27,10 +27,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.data.mongodb.MongoDbFactory;
+import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.config.EnableMongoAuditing;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
+import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 import org.springframework.util.Assert;
@@ -38,11 +38,9 @@ import uk.ac.ebi.eva.commons.mongodb.configuration.EvaRepositoriesConfiguration;
 import uk.ac.ebi.eva.vcfdump.configuration.DBAdaptorConnector;
 import uk.ac.ebi.eva.vcfdump.configuration.SpringDataMongoDbProperties;
 
-import java.net.UnknownHostException;
-
 @Configuration
 @Import({EvaRepositoriesConfiguration.class, SpringDataMongoDbProperties.class})
-@PropertySource({"classpath:evaTest.properties"})
+@PropertySource({"classpath:/properties/evaTest.properties"})
 @EnableMongoRepositories(basePackages = "uk.ac.ebi.eva.commons.mongodb.repositories")
 @EntityScan(basePackages = "uk.ac.ebi.eva.commons.mongodb.services")
 @EnableMongoAuditing
@@ -52,52 +50,52 @@ public class MongoRepositoryTestConfiguration {
     @Bean
     public String mongoCollectionsAnnotationMetadata(
             @Value("${eva.mongo.collections.annotation-metadata:#{null}}") String collectionAnnotationMetadata) {
-        Assert.notNull(collectionAnnotationMetadata);
+        Assert.notNull(collectionAnnotationMetadata, "Annotation metadata collection name cannot be null");
         return collectionAnnotationMetadata;
     }
 
     @Bean
     public String mongoCollectionsAnnotations(
             @Value("${eva.mongo.collections.annotations:#{null}}") String collectionAnnotations) {
-        Assert.notNull(collectionAnnotations);
+        Assert.notNull(collectionAnnotations, "Annotations collection name cannot be null");
         return collectionAnnotations;
     }
 
     @Bean
     public String mongoCollectionsFeatures(
             @Value("${eva.mongo.collections.features:#{null}}") String collectionFeatures) {
-        Assert.notNull(collectionFeatures);
+        Assert.notNull(collectionFeatures, "Features collection name cannot be null");
         return collectionFeatures;
     }
 
     @Bean
     public String mongoCollectionsVariants(
             @Value("${eva.mongo.collections.variants:#{null}}") String collectionVariants) {
-        Assert.notNull(collectionVariants);
+        Assert.notNull(collectionVariants, "Variants collection name cannot be null");
         return collectionVariants;
     }
 
     @Bean
     public String mongoCollectionsFiles(@Value("${eva.mongo.collections.files:#{null}}") String collectionFiles) {
-        Assert.notNull(collectionFiles);
+        Assert.notNull(collectionFiles, "Files collection name cannot be null");
         return collectionFiles;
     }
 
     @Bean
     public MongoClient mongoClient(
-            SpringDataMongoDbProperties springDataMongoDbProperties) throws UnknownHostException {
+            SpringDataMongoDbProperties springDataMongoDbProperties) {
         return DBAdaptorConnector.getMongoClient(springDataMongoDbProperties);
     }
 
     @Bean
-    public MongoTemplate mongoTemplate(MongoDbFactory mongoDbFactory,
-                                       MappingMongoConverter mappingMongoConverter) throws Exception {
+    public MongoTemplate mongoTemplate(MongoDatabaseFactory mongoDbFactory,
+                                       MappingMongoConverter mappingMongoConverter) {
         return new MongoTemplate(mongoDbFactory, mappingMongoConverter);
     }
 
     @Bean
-    public MongoDbFactory mongoDbFactory(MongoClient mongoClient) throws Exception {
-        return new SimpleMongoDbFactory(mongoClient, this.getDatabaseName());
+    public MongoDatabaseFactory mongoDbFactory(MongoClient mongoClient) {
+        return new SimpleMongoClientDatabaseFactory(mongoClient, this.getDatabaseName());
     }
 
     private String getDatabaseName() {

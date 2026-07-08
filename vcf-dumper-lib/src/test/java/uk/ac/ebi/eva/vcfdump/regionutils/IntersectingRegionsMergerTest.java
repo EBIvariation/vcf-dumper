@@ -15,15 +15,15 @@
  */
 package uk.ac.ebi.eva.vcfdump.regionutils;
 
-import org.junit.Test;
 
+import org.junit.jupiter.api.Test;
 import uk.ac.ebi.eva.commons.core.models.Region;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class IntersectingRegionsMergerTest {
 
@@ -41,7 +41,7 @@ public class IntersectingRegionsMergerTest {
                 .asList(new Region("1", 300L, 500L), new Region("2", 150L, 250L), new Region("1", 100L, 200L));
         List<Region> mergedRegions = unsortedRegions.stream().collect(new IntersectingRegionsMerger());
         assertEquals(Arrays.asList(new Region("1", 100L, 200L), new Region("1", 300L, 500L), new Region("2", 150L, 250L)),
-                     mergedRegions);
+                mergedRegions);
     }
 
     @Test
@@ -71,7 +71,7 @@ public class IntersectingRegionsMergerTest {
     public void testMoreThanTwoIntersectingRegions() {
         List<Region> intersectingRegions =
                 Arrays.asList(new Region("1", 100L, 200L), new Region("1", 150L, 500L), new Region("1", 400L, 600L),
-                              new Region("1", 125L, 550L));
+                        new Region("1", 125L, 550L));
         List<Region> mergedRegions = intersectingRegions.stream().collect(new IntersectingRegionsMerger());
         assertEquals(Collections.singletonList(new Region("1", 100L, 600L)), mergedRegions);
     }

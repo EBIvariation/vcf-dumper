@@ -17,14 +17,13 @@
  */
 package uk.ac.ebi.eva.vcfdump.server.test.configuration;
 
-import com.mongodb.MongoClient;
-import org.springframework.boot.test.autoconfigure.data.mongo.AutoConfigureDataMongo;
+
+import com.mongodb.client.MongoClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.mongodb.MongoDbFactory;
-import org.springframework.data.mongodb.core.SimpleMongoDbFactory;
-
+import org.springframework.data.mongodb.MongoDatabaseFactory;
+import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 import uk.ac.ebi.eva.vcfdump.server.configuration.MongoConfiguration;
 
 @Configuration
@@ -32,8 +31,8 @@ import uk.ac.ebi.eva.vcfdump.server.configuration.MongoConfiguration;
 public class MongoTestConfiguration {
 
     @Bean
-    public MongoDbFactory mongoDbFactory(MongoClient mongoClient) {
-        return new SimpleMongoDbFactory(mongoClient, "vcf-dumper-db-test");
+    public MongoDatabaseFactory mongoDbFactory(MongoClient mongoClient) {
+        return new SimpleMongoClientDatabaseFactory(mongoClient, "vcf-dumper-db-test");
     }
 
 }

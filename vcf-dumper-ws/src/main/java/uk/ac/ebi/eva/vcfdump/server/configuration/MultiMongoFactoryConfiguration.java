@@ -16,18 +16,15 @@
 
 package uk.ac.ebi.eva.vcfdump.server.configuration;
 
-import com.mongodb.MongoClient;
+import com.mongodb.client.MongoClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.mongodb.MongoDbFactory;
-
+import org.springframework.data.mongodb.MongoDatabaseFactory;
 import uk.ac.ebi.eva.vcfdump.configuration.DBAdaptorConnector;
 import uk.ac.ebi.eva.vcfdump.configuration.SpringDataMongoDbProperties;
-
-import java.io.IOException;
 
 @Configuration
 @Import(SpringDataMongoDbProperties.class)
@@ -42,8 +39,8 @@ public class MultiMongoFactoryConfiguration {
      */
     @Bean
     @Profile(Profiles.PRODUCTION_MONGO_FACTORY)
-    public MongoDbFactory mongoDbFactory() throws IOException {
-        assert(springDataMongoDbProperties != null);
+    public MongoDatabaseFactory mongoDbFactory() {
+        assert (springDataMongoDbProperties != null);
         MongoClient mongoClient = DBAdaptorConnector.getMongoClient(springDataMongoDbProperties);
         return new MultiMongoDbFactory(mongoClient, "unusedDefaultDB");
     }
