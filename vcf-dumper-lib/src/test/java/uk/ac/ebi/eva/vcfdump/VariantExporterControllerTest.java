@@ -33,6 +33,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.MockServerContainer;
 import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import uk.ac.ebi.eva.commons.core.models.Region;
 import uk.ac.ebi.eva.commons.core.models.ws.VariantWithSamplesAndAnnotation;
@@ -71,6 +72,7 @@ import static org.springframework.test.util.AssertionErrors.assertFalse;
 import static uk.ac.ebi.eva.vcfdump.VariantExporterController.ANNOTATION_EXCLUSION;
 import static uk.ac.ebi.eva.vcfdump.VariantToVariantContextConverter.ANNOTATION_KEY;
 
+@Testcontainers
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = {MongoRepositoryTestConfiguration.class})
 public class VariantExporterControllerTest extends MongoTestContainerHelper {

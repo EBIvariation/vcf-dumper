@@ -72,12 +72,13 @@ public class MongoTestDataLoader {
             throw new RuntimeException("Failed to load test data from: " + resourcePath, e);
         }
     }
+
     private BsonDocument readBsonRoot(String resourcePath) throws Exception {
         Resource resource = resourceLoader.getResource("classpath:" + resourcePath);
         String content = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
-        // Normalize timezone format: +0000 -> +00:00 for BSON date parsing
-        content = content.replaceAll("(\\+\\d{2})(\\d{2})\"\\)", "$1:$2\")");
+        // Normalize timezone format: +0000 -> +00:00 for BSON date parsing (Check for date string in the format HH:MM:SS)
+        content = content.replaceAll("(\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?)(\\+\\d{2})(\\d{2})\"", "$1$2:$3\"");
 
         return BsonDocument.parse(content);
     }
