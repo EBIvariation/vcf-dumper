@@ -15,7 +15,8 @@
  */
 package uk.ac.ebi.eva.vcfdump;
 
-import org.mockserver.client.server.MockServerClient;
+
+import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.model.HttpResponse;
 import org.mockserver.model.JsonBody;
@@ -30,17 +31,17 @@ public class MockServerClientHelper {
         mockServerClient
                 .when(
                         HttpRequest.request()
-                                   .withMethod("GET")
-                                   .withPath("/eva/webservices/rest/v1/segments")
-                                   .withQueryStringParameter(
-                                           new Parameter("species", dbName)
-                                   )
+                                .withMethod("GET")
+                                .withPath("/eva/webservices/rest/v1/segments")
+                                .withQueryStringParameter(
+                                        new Parameter("species", dbName)
+                                )
                 )
                 .respond(
                         HttpResponse.response()
-                                    .withHeader("Content-Type", "application/json", "charset=UTF-8")
-                                    .withStatusCode(HttpStatus.OK.value())
-                                    .withBody( new JsonBody(hsapiensGrch37ResponseBody))
+                                .withHeader("Content-Type", "application/json", "charset=UTF-8")
+                                .withStatusCode(HttpStatus.OK.value())
+                                .withBody(new JsonBody(hsapiensGrch37ResponseBody))
                 );
     }
 
@@ -50,17 +51,17 @@ public class MockServerClientHelper {
         mockServerClient
                 .when(
                         HttpRequest.request()
-                                   .withMethod("GET")
-                                   .withPath("/eva/webservices/rest/v1/segments")
-                                   .withQueryStringParameter(
-                                           new Parameter("species", dbName)
-                                   )
+                                .withMethod("GET")
+                                .withPath("/eva/webservices/rest/v1/segments")
+                                .withQueryStringParameter(
+                                        new Parameter("species", dbName)
+                                )
                 )
                 .respond(
                         HttpResponse.response()
-                                    .withHeader("Content-Type", "application/json", "charset=UTF-8")
-                                    .withStatusCode(HttpStatus.OK.value())
-                                    .withBody( new JsonBody(oariesOarv31ResponseBody))
+                                .withHeader("Content-Type", "application/json", "charset=UTF-8")
+                                .withStatusCode(HttpStatus.OK.value())
+                                .withBody(new JsonBody(oariesOarv31ResponseBody))
                 );
     }
 

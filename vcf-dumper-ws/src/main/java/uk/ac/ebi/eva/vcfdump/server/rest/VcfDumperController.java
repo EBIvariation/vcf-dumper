@@ -17,9 +17,10 @@
  */
 package uk.ac.ebi.eva.vcfdump.server.rest;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiParam;
-import org.apache.commons.lang.StringUtils;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
 import uk.ac.ebi.eva.commons.mongodb.services.VariantSourceService;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantWithSamplesAndAnnotationsService;
 import uk.ac.ebi.eva.vcfdump.QueryParams;
@@ -35,7 +35,6 @@ import uk.ac.ebi.eva.vcfdump.VariantExporterController;
 import uk.ac.ebi.eva.vcfdump.configuration.DBAdaptorConnector;
 import uk.ac.ebi.eva.vcfdump.server.configuration.MultiMongoDbFactory;
 
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -52,7 +51,7 @@ import static uk.ac.ebi.eva.vcfdump.server.configuration.SwaggerParameterDescrip
 
 @RestController
 @RequestMapping(value = "/v1/segments")
-@Api(tags = {"segments"})
+@Tag(name = "segments")
 public class VcfDumperController {
 
     private Properties evaProperties;
@@ -71,23 +70,23 @@ public class VcfDumperController {
 
     @RequestMapping(value = "/{regionId}/variants", method = RequestMethod.GET)
     public StreamingResponseBody getVariantsByRegionStreamingOutput(
-            @ApiParam(value = REGION_DESCRIPTION, required = true)
+            @Parameter(description = REGION_DESCRIPTION, required = true)
             @PathVariable("regionId") String region,
-            @ApiParam(value = SPECIES_DESCRIPTION, required = true)
+            @Parameter(description = SPECIES_DESCRIPTION, required = true)
             @RequestParam(name = "species") String species,
-            @ApiParam(value = STUDY_LIST_DESCRIPTION, required = true)
+            @Parameter(description = STUDY_LIST_DESCRIPTION, required = true)
             @RequestParam(name = "studies") List<String> studies,
-            @ApiParam(value = ANNOTATION_CONSEQUENCE_TYPE_DESCRIPTION)
+            @Parameter(description = ANNOTATION_CONSEQUENCE_TYPE_DESCRIPTION)
             @RequestParam(name = "annot-ct", required = false) List<String> consequenceType,
-            @ApiParam(value = MINOR_ALLELE_FREQUENCY_DESCRIPTION)
+            @Parameter(description = MINOR_ALLELE_FREQUENCY_DESCRIPTION)
             @RequestParam(name = "maf", required = false) String maf,
-            @ApiParam(value = POLYPHEN_DESCRIPTION)
+            @Parameter(description = POLYPHEN_DESCRIPTION)
             @RequestParam(name = "polyphen", required = false) String polyphenScore,
-            @ApiParam(value = SIFT_DESCRIPTION)
+            @Parameter(description = SIFT_DESCRIPTION)
             @RequestParam(name = "sift", required = false) String siftScore,
-            @ApiParam(value = REFERENCE_ALLELE_DESCRIPTION)
+            @Parameter(description = REFERENCE_ALLELE_DESCRIPTION)
             @RequestParam(name = "ref", required = false, defaultValue = "") String reference,
-            @ApiParam(value = ALTERNATE_ALLELE_DESCRIPTION)
+            @Parameter(description = ALTERNATE_ALLELE_DESCRIPTION)
             @RequestParam(name = "alt", required = false, defaultValue = "") String alternate,
             @RequestParam(name = "miss_alleles", required = false, defaultValue = "") String missingAlleles,
             @RequestParam(name = "miss_gts", required = false, defaultValue = "") String missingGenotypes,
@@ -95,30 +94,30 @@ public class VcfDumperController {
             HttpServletResponse response) {
 
         QueryParams queryParameters = parseQueryParams(region, consequenceType, maf, polyphenScore, siftScore,
-                                                       reference, alternate,missingAlleles, missingGenotypes, exclude);
+                reference, alternate, missingAlleles, missingGenotypes, exclude);
 
         String dbName = DBAdaptorConnector.getDBName(species);
         MultiMongoDbFactory.setDatabaseNameForCurrentThread(dbName);
         StreamingResponseBody responseBody = getStreamingResponseBody(dbName, studies, evaProperties,
-                                                                      queryParameters, response);
+                queryParameters, response);
 
         return responseBody;
     }
 
     private StreamingResponseBody getStreamingResponseBody(String dbName, List<String> studies,
-                                                            Properties evaProperties,
-                                                            QueryParams queryParameters,
-                                                            HttpServletResponse response) {
+                                                           Properties evaProperties,
+                                                           QueryParams queryParameters,
+                                                           HttpServletResponse response) {
         return outputStream -> {
             VariantExporterController controller;
             try {
                 MultiMongoDbFactory.setDatabaseNameForCurrentThread(dbName);
                 controller = new VariantExporterController(dbName, variantSourceService,
-                                                           variantService, studies, outputStream, evaProperties,
-                                                           queryParameters);
+                        variantService, studies, outputStream, evaProperties,
+                        queryParameters);
                 // tell the client that the file is an attachment, so it will download it instead of showing it
                 response.addHeader(HttpHeaders.CONTENT_DISPOSITION,
-                                   "attachment;filename=" + controller.getOutputFileName());
+                        "attachment;filename=" + controller.getOutputFileName());
                 controller.run();
             } catch (Exception e) {
                 throw new RuntimeException(e);

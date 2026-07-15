@@ -15,15 +15,15 @@
  */
 package uk.ac.ebi.eva.vcfdump;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
 import java.util.Iterator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class VcfHeaderFilteringLineIteratorTest {
 
@@ -31,7 +31,7 @@ public class VcfHeaderFilteringLineIteratorTest {
 
     private InputStream inputStream;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         inputStream = this.getClass().getResourceAsStream("/vcfTestHeader.vcf");
     }
@@ -46,7 +46,7 @@ public class VcfHeaderFilteringLineIteratorTest {
     @Test
     public void iterateExcludingNonExistingFieldsWillReturnAllLines() {
         VcfHeaderFilteringLineIterator iterator = new VcfHeaderFilteringLineIterator(inputStream, "NotExistingField1",
-                                                                                     "NotExistingField2");
+                "NotExistingField2");
 
         assertEquals(HEADER_LINES, countLinesUsingIterator(iterator));
     }
@@ -60,10 +60,10 @@ public class VcfHeaderFilteringLineIteratorTest {
         assertIteratorReturnHeaderLine(iterator, "##ALT=<ID=DEL,Description=\"Deletion\">");
         assertIteratorReturnHeaderLine(iterator, "##FILTER=<ID=PASS,Description=\"All filters passed\">");
         assertIteratorReturnHeaderLine(iterator,
-                                       "##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"Genotype dosage from " +
-                                               "MaCH/Thunder\">");
+                "##FORMAT=<ID=DS,Number=1,Type=Float,Description=\"Genotype dosage from " +
+                        "MaCH/Thunder\">");
         assertIteratorReturnHeaderLine(iterator,
-                                       "##FORMAT=<ID=GL,Number=.,Type=Float,Description=\"Genotype Likelihoods\">");
+                "##FORMAT=<ID=GL,Number=.,Type=Float,Description=\"Genotype Likelihoods\">");
         assertIteratorReturnHeaderLine(iterator, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">");
         assertIteratorReturnHeaderLine(iterator, "##FORMAT=<ID=PL,Number=G,Type=Integer,Description=\"Normalized, " +
                 "Phred-scaled likelihoods for genotypes as defined in the VCF specification\">");
@@ -72,8 +72,8 @@ public class VcfHeaderFilteringLineIteratorTest {
         assertIteratorReturnHeaderLine(iterator, "##reference=GRCh37");
         assertIteratorReturnHeaderLine(iterator, "##source=1000GenomesPhase3Pipeline");
         assertIteratorReturnHeaderLine(iterator,
-                                       "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tERZX00049_HG03976" +
-                                               "\tERZX00049_HG03977\tERZX00049_HG03978\tERZ015361_HG00381\tERZ015361_HG00382\tERZ015361_HG00383");
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tERZX00049_HG03976" +
+                        "\tERZX00049_HG03977\tERZX00049_HG03978\tERZ015361_HG00381\tERZ015361_HG00382\tERZ015361_HG00383");
 
         assertFalse(iterator.hasNext());
 
@@ -92,8 +92,8 @@ public class VcfHeaderFilteringLineIteratorTest {
         assertIteratorReturnHeaderLine(iterator, "##reference=GRCh37");
         assertIteratorReturnHeaderLine(iterator, "##source=1000GenomesPhase3Pipeline");
         assertIteratorReturnHeaderLine(iterator,
-                                       "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tERZX00049_HG03976" +
-                                               "\tERZX00049_HG03977\tERZX00049_HG03978\tERZ015361_HG00381\tERZ015361_HG00382\tERZ015361_HG00383");
+                "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tERZX00049_HG03976" +
+                        "\tERZX00049_HG03977\tERZX00049_HG03978\tERZ015361_HG00381\tERZ015361_HG00382\tERZ015361_HG00383");
 
         assertFalse(iterator.hasNext());
 

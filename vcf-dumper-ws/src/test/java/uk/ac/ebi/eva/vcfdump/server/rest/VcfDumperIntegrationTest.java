@@ -24,24 +24,23 @@ import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.TypeRef;
 import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
-import com.mongodb.MongoClient;
+import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.SpringRunner;
-
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import uk.ac.ebi.eva.vcfdump.server.model.HtsGetResponse;
 import uk.ac.ebi.eva.vcfdump.server.model.UrlResponse;
+import uk.ac.ebi.eva.vcfdump.utils.MongoTestContainerHelper;
 
 import java.io.IOException;
 import java.net.URI;
@@ -54,12 +53,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@RunWith(SpringRunner.class)
+@ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestPropertySource({"classpath:test.properties"})
-public class VcfDumperIntegrationTest {
+@TestPropertySource({"classpath:properties/test.properties"})
+public class VcfDumperIntegrationTest extends MongoTestContainerHelper {
 
     private static final String EVA_ECABALLUS_20_DB = "eva_ecaballus_20";
 
@@ -76,9 +75,6 @@ public class VcfDumperIntegrationTest {
     private static final int BLOCK_SIZE = 1000;
 
     @Autowired
-    private ApplicationContext applicationContext;
-
-    @Autowired
     private MongoClient mongoClient;
 
     @Autowired
@@ -87,7 +83,7 @@ public class VcfDumperIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         createHorseDatabase();
         createNoVariantsDatabase();
@@ -104,7 +100,7 @@ public class VcfDumperIntegrationTest {
         insertIntoCollectionFromFile(eva_ecaballus_20, ANNOTATIONS_COLLECTION, "test-data/annotations.json");
         eva_ecaballus_20.createCollection(ANNOTATIONS_METADATA_COLLECTION);
         insertIntoCollectionFromFile(eva_ecaballus_20, ANNOTATIONS_METADATA_COLLECTION,
-                                     "test-data/annotationsMetadata.json");
+                "test-data/annotationsMetadata.json");
     }
 
     private void insertIntoCollectionFromFile(MongoDatabase mongoDatabase, String collection, String path)
@@ -129,7 +125,7 @@ public class VcfDumperIntegrationTest {
         mongoDatabase.getCollection(FILES_COLLECTION).insertOne(file);
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         mongoClient.getDatabase(EVA_ECABALLUS_20_DB).drop();
         mongoClient.getDatabase(EVA_NO_VARIANTS_DB).drop();
@@ -159,13 +155,14 @@ public class VcfDumperIntegrationTest {
 
     private HtsGetResponse getUrlsFromResponse(ResponseEntity<String> response) {
         Configuration configuration = Configuration.defaultConfiguration()
-                                                   .jsonProvider(new JacksonJsonProvider())
-                                                   .mappingProvider(new JacksonMappingProvider(objectMapper))
-                                                   .addOptions(Option.SUPPRESS_EXCEPTIONS);
+                .jsonProvider(new JacksonJsonProvider())
+                .mappingProvider(new JacksonMappingProvider(objectMapper))
+                .addOptions(Option.SUPPRESS_EXCEPTIONS);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         HtsGetResponse htsGetResponse = JsonPath.using(configuration)
-                                                .parse(response.getBody())
-                                                .read("$['htsget']", new TypeRef<HtsGetResponse>() {});
+                .parse(response.getBody())
+                .read("$['htsget']", new TypeRef<HtsGetResponse>() {
+                });
         return htsGetResponse;
     }
 

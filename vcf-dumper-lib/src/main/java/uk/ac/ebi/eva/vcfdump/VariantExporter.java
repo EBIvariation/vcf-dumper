@@ -86,7 +86,7 @@ public class VariantExporter {
         try {
             Long variantsInRegion = variantService.countByRegionsAndComplexFilters(regions, filters);
             int pageSize = castSafely(Math.max(1, variantsInRegion));
-            PageRequest pageable = new PageRequest(0, pageSize);
+            PageRequest pageable = PageRequest.of(0, pageSize);
             List<VariantWithSamplesAndAnnotation> variants = variantService.findByRegionsAndComplexFilters(
                     regions, filters, null, Collections.emptyList(), pageable);
 
@@ -97,8 +97,8 @@ public class VariantExporter {
                         variantsToExport.add(variantContext);
                     } catch (Exception e) {
                         logger.warn("Variant {}:{}:{}>{} dump failed: {}", variant.getChromosome(), variant.getStart(),
-                                    variant.getReference(),
-                                    variant.getAlternate(), e.getMessage());
+                                variant.getReference(),
+                                variant.getAlternate(), e.getMessage());
                         failedVariants++;
                     }
                 }
@@ -126,7 +126,7 @@ public class VariantExporter {
 
         List<VariantSource> sourcesList = new ArrayList<>();
         // get sources
-        Pageable pageRequest = new PageRequest(0, 1000);
+        Pageable pageRequest = PageRequest.of(0, 1000);
         List<VariantSource> sourcesListBySid = variantSourceService.findByStudyIdIn(studyIds, pageRequest);
 
         if (!fileIds.isEmpty()) {
@@ -143,8 +143,8 @@ public class VariantExporter {
         // check if there are conflicts in sample names and create new ones if needed
         Map<String, Map<String, String>> studiesSampleNamesMapping = createNonConflictingSampleNames(sourcesList);
         variantToVariantContextConverter = new VariantToVariantContextConverter(sourcesList,
-                                                                                studiesSampleNamesMapping,
-                                                                                excludeAnnotations);
+                studiesSampleNamesMapping,
+                excludeAnnotations);
 
         return sourcesList;
     }
@@ -166,13 +166,13 @@ public class VariantExporter {
         // create a list containing the sample names of every input study
         // if a sample name is in more than one study, it will be several times in the list)
         List<String> originalSampleNames = sources.stream().map(VariantSource::getSamplesPosition).flatMap(l -> l.keySet().stream())
-                                                  .collect(Collectors.toList());
+                .collect(Collectors.toList());
         boolean someSampleNameInMoreThanOneStudy = false;
         if (sources.size() > 1) {
             // if there are several studies, check if there are duplicate elements
             someSampleNameInMoreThanOneStudy = originalSampleNames.stream()
-                                                                  .anyMatch(s -> Collections
-                                                                          .frequency(originalSampleNames, s) > 1);
+                    .anyMatch(s -> Collections
+                            .frequency(originalSampleNames, s) > 1);
             if (someSampleNameInMoreThanOneStudy) {
                 filesSampleNamesMapping = resolveConflictsInSampleNamesPrefixingFileId(sources);
             }
@@ -193,7 +193,7 @@ public class VariantExporter {
             // create a map from original to "conflict free" sample name (prefixing with study id)
             Map<String, String> fileSampleNamesMapping = new HashMap<>();
             source.getSamplesPosition().keySet().stream()
-                  .forEach(name -> fileSampleNamesMapping.put(name, source.getFileId() + "_" + name));
+                    .forEach(name -> fileSampleNamesMapping.put(name, source.getFileId() + "_" + name));
 
             // add "conflict free" names to output sample names set
             outputSampleNames.addAll(fileSampleNamesMapping.values());
@@ -208,8 +208,8 @@ public class VariantExporter {
      * postconditions:
      * - returns one header per study (one header for each key in `sources`).
      *
-     * @throws IOException
      * @param sources
+     * @throws IOException
      */
     public Map<String, VCFHeader> getVcfHeaders(List<VariantSource> sources) throws IOException {
         Map<String, VCFHeader> headers = new TreeMap<>();
@@ -233,7 +233,7 @@ public class VariantExporter {
         VCFCodec vcfCodec = new VCFCodec();
         ByteArrayInputStream bufferedInputStream = new ByteArrayInputStream(headerObject.getBytes());
         LineIterator filteringLineIterator = new VcfHeaderFilteringLineIterator(bufferedInputStream, "FILTER", "FORMAT",
-                                                                                "INFO");
+                "INFO");
         try {
             FeatureCodecHeader featureCodecHeader = vcfCodec.readHeader(filteringLineIterator);
             return (VCFHeader) featureCodecHeader.getHeaderValue();
@@ -261,9 +261,9 @@ public class VariantExporter {
         removeHeaderLine(headerLines, "INFO", ANNOTATION_KEY);
         if (!excludeAnnotations) {
             headerLines.add(new VCFInfoHeaderLine(ANNOTATION_KEY, 1, VCFHeaderLineType.String,
-                                                  "Consequence annotations from Ensembl VEP. " +
-                                                          "Format: Allele|Consequence|SYMBOL|Gene|" +
-                                                          "Feature|BIOTYPE|cDNA_position|CDS_position"));
+                    "Consequence annotations from Ensembl VEP. " +
+                            "Format: Allele|Consequence|SYMBOL|Gene|" +
+                            "Feature|BIOTYPE|cDNA_position|CDS_position"));
         }
         return headerLines;
     }
@@ -272,7 +272,7 @@ public class VariantExporter {
         for (VCFHeaderLine headerLine : headerLines) {
             if (headerLine.getKey().equals(key)
                     && headerLine instanceof VCFIDHeaderLine
-                    && ((VCFIDHeaderLine)headerLine).getID().equals(id)) {
+                    && ((VCFIDHeaderLine) headerLine).getID().equals(id)) {
                 headerLines.remove(headerLine);
                 break;
             }

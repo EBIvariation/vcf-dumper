@@ -15,23 +15,19 @@
  */
 package uk.ac.ebi.eva.vcfdump;
 
-import com.lordofthejars.nosqlunit.annotation.UsingDataSet;
-import com.lordofthejars.nosqlunit.mongodb.MongoDbRule;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.mongodb.core.MongoOperations;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import uk.ac.ebi.eva.commons.core.models.Region;
 import uk.ac.ebi.eva.commons.core.models.StudyType;
 import uk.ac.ebi.eva.commons.core.models.VariantSource;
@@ -41,6 +37,8 @@ import uk.ac.ebi.eva.commons.mongodb.filter.VariantRepositoryFilter;
 import uk.ac.ebi.eva.commons.mongodb.services.AnnotationMetadataNotFoundException;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantSourceService;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantWithSamplesAndAnnotationsService;
+import uk.ac.ebi.eva.vcfdump.utils.MongoTestContainerHelper;
+import uk.ac.ebi.eva.vcfdump.utils.MongoTestDataLoader;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,22 +48,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.lordofthejars.nosqlunit.mongodb.MongoDbRule.MongoDbRuleBuilder.newMongoDbRule;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static uk.ac.ebi.eva.vcfdump.VariantToVariantContextConverter.ANNOTATION_KEY;
 import static uk.ac.ebi.eva.vcfdump.VariantToVariantContextConverter.GENOTYPE_KEY;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = {MongoRepositoryTestConfiguration.class})
-public class VariantExporterTest {
+public class VariantExporterTest extends MongoTestContainerHelper {
 
     private static VariantExporter variantExporter;
-
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
 
     @Autowired
     private VariantWithSamplesAndAnnotationsService variantService;
@@ -91,19 +86,18 @@ public class VariantExporterTest {
     private static final int NUMBER_OF_SAMPLES_IN_SHEEP_FILES = 453;
 
     @Autowired
-    private MongoOperations mongoOperations;
+    private MongoTemplate mongoTemplate;
 
     @Autowired
-    private ApplicationContext applicationContext;
+    private ResourceLoader resourceLoader;
 
-    @Rule
-    public MongoDbRule mongoDbRule = newMongoDbRule().defaultSpringMongoDb("test-db");
+    private MongoTestDataLoader mongoTestDataLoader;
 
     /**
      * Clears and populates sample lists used during the tests.
      *
      */
-    @BeforeClass
+    @BeforeAll
     public static void setUpClass() {
         // example samples list
         s1s6SampleList = new ArrayList<>();
@@ -122,12 +116,37 @@ public class VariantExporterTest {
         variantExporter = new VariantExporter(true);
     }
 
+    @BeforeEach
+    public void setUp() {
+        mongoTemplate.getDb().drop();
+        mongoTestDataLoader = new MongoTestDataLoader(mongoTemplate, resourceLoader);
+    }
+
+    private void insertData(String... dataFiles) {
+        for (String data : dataFiles) {
+            mongoTestDataLoader.load(data);
+        }
+    }
+
+    private void insertHsapiensGrch37Data() {
+        insertData("/db-dump/eva_hsapiens_grch37/files_2_0.json",
+                "/db-dump/eva_hsapiens_grch37/variants_2_0.json");
+    }
+
+    private void insertOariesOarv31Data() {
+        insertData("/db-dump/eva_oaries_oarv31/files_2_0.json",
+                "/db-dump/eva_oaries_oarv31/variants_2_0.json");
+    }
+
+    private void insertBtaurusUmd31Data() {
+        insertData("/db-dump/eva_btaurus_umd31/files_2_0.json",
+                "/db-dump/eva_btaurus_umd31/variants_2_0.json");
+    }
+
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
     public void getSourcesOneStudyWithEmptyFilesFilter() {
+        insertHsapiensGrch37Data();
         // one study
         String study7Id = "7";
         List<String> studies = Collections.singletonList(study7Id);
@@ -141,10 +160,8 @@ public class VariantExporterTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
     public void getSourcesTwoStudiesWithEmptyFilesFilter() {
+        insertHsapiensGrch37Data();
         // two studies
         String study7Id = "7";
         String study8Id = "8";
@@ -164,13 +181,14 @@ public class VariantExporterTest {
 
     @Test
     public void getSourcesOneStudyThatHasTwoFilesWithEmptyFilesFilter() {
+        insertOariesOarv31Data();
         // one study with two files, without asking for any particular file
         List<String> sheepStudy = Collections.singletonList(SHEEP_STUDY_ID);
         List<VariantSource> sources = variantExporter
                 .getSources(variantSourceService, sheepStudy, Collections.emptyList());
         assertEquals(2, sources.size());
         boolean correctStudyId = sources.stream()
-                                        .allMatch(s -> s.getStudyId().equals(SHEEP_STUDY_ID));
+                .allMatch(s -> s.getStudyId().equals(SHEEP_STUDY_ID));
         assertTrue(correctStudyId);
         assertTrue(sources.stream().anyMatch(s -> s.getFileId().equals(SHEEP_FILE_1_ID)));
         assertTrue(sources.stream().anyMatch(s -> s.getFileId().equals(SHEEP_FILE_2_ID)));
@@ -179,18 +197,16 @@ public class VariantExporterTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
     public void getSourcesOneStudyThatHasTwoFiles() {
+        insertOariesOarv31Data();
         // one study with two files, asking for both files
         List<String> sheepStudy = Collections.singletonList(SHEEP_STUDY_ID);
         List<VariantSource> sources = variantExporter.getSources(variantSourceService, sheepStudy,
-                                                                 Arrays.asList(SHEEP_FILE_1_ID,
-                                                                               SHEEP_FILE_2_ID));
+                Arrays.asList(SHEEP_FILE_1_ID,
+                        SHEEP_FILE_2_ID));
         assertEquals(2, sources.size());
         boolean correctStudyId = sources.stream()
-                                        .allMatch(s -> s.getStudyId().equals(SHEEP_STUDY_ID));
+                .allMatch(s -> s.getStudyId().equals(SHEEP_STUDY_ID));
         assertTrue(correctStudyId);
         assertTrue(sources.stream().anyMatch(s -> s.getFileId().equals(SHEEP_FILE_1_ID)));
         assertTrue(sources.stream().anyMatch(s -> s.getFileId().equals(SHEEP_FILE_2_ID)));
@@ -199,18 +215,16 @@ public class VariantExporterTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
     public void getSourcesOneStudyThatHasTwoFilesWithOneFileInFilter() {
+        insertOariesOarv31Data();
         // one study with two files, asking just for a file
         List<String> sheepStudy = Collections.singletonList(SHEEP_STUDY_ID);
         List<VariantSource> sources = variantExporter
                 .getSources(variantSourceService, sheepStudy,
-                            Collections.singletonList(SHEEP_FILE_1_ID));
+                        Collections.singletonList(SHEEP_FILE_1_ID));
         assertEquals(1, sources.size());
         boolean correctStudyId = sources.stream()
-                                        .allMatch(s -> s.getStudyId().equals(SHEEP_STUDY_ID));
+                .allMatch(s -> s.getStudyId().equals(SHEEP_STUDY_ID));
         assertTrue(correctStudyId);
         assertTrue(sources.stream().anyMatch(s -> s.getFileId().equals(SHEEP_FILE_1_ID)));
         assertTrue(sources.stream().allMatch(
@@ -218,32 +232,27 @@ public class VariantExporterTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
     public void getSourcesEmptyStudiesFilter() {
+        insertHsapiensGrch37Data();
         // empty study filter
         List<VariantSource> sources = variantExporter
                 .getSources(variantSourceService, Collections.emptyList(), Collections.emptyList());
         assertEquals(0, sources.size());
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
+    @Test
     public void notExistingSourceShouldThrowException() {
+        insertHsapiensGrch37Data();
         VariantExporter variantExporter = new VariantExporter(true);
         // The study with id "2" is not in database
         List<String> study = Collections.singletonList("2");
-        variantExporter.getSources(variantSourceService, study, Collections.emptyList());
+        assertThrows(IllegalArgumentException.class,
+                () -> variantExporter.getSources(variantSourceService, study, Collections.emptyList()));
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
     public void checkSampleNamesConflicts() {
+        insertHsapiensGrch37Data();
         VariantSource variantSource = createTestVariantSource(FILE_1, s1s6SampleList);
         VariantSource variantSource2 = createTestVariantSource(FILE_2, c1c6SampleList);
         VariantSource variantSource3 = createTestVariantSource(FILE_3, s2s3SampleList);
@@ -260,9 +269,9 @@ public class VariantExporterTest {
         Map<String, Map<String, String>> file1And3SampleNameTranslations = variantExporter
                 .createNonConflictingSampleNames((Arrays.asList(variantSource, variantSource3)));
         s1s6SampleList.forEach(sampleName -> file1And3SampleNameTranslations.get(FILE_1).get(sampleName)
-                                                                            .equals(FILE_1 + "_" + sampleName));
+                .equals(FILE_1 + "_" + sampleName));
         s2s3SampleList.forEach(sampleName -> file1And3SampleNameTranslations.get(FILE_3).get(sampleName)
-                                                                            .equals(FILE_3 + "_" + sampleName));
+                .equals(FILE_3 + "_" + sampleName));
 
 
         // sutdy 1 and 3 (but not 2) share sample some names
@@ -270,20 +279,18 @@ public class VariantExporterTest {
                 .createNonConflictingSampleNames((Arrays.asList(variantSource, variantSource2, variantSource3)));
         s1s6SampleList
                 .forEach(sampleName -> file1And2And3SampleNameTranslations.get(FILE_1).get(sampleName)
-                                                                          .equals(FILE_1 + "_" + sampleName));
+                        .equals(FILE_1 + "_" + sampleName));
         c1c6SampleList
                 .forEach(sampleName -> file1And2And3SampleNameTranslations.get(FILE_2).get(sampleName)
-                                                                          .equals(FILE_2 + "_" + sampleName));
+                        .equals(FILE_2 + "_" + sampleName));
         s2s3SampleList
                 .forEach(sampleName -> file1And2And3SampleNameTranslations.get(FILE_3).get(sampleName)
-                                                                          .equals(FILE_3 + "_" + sampleName));
+                        .equals(FILE_3 + "_" + sampleName));
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
     public void getVcfHeaders() throws IOException {
+        insertHsapiensGrch37Data();
         VariantExporter variantExporter = new VariantExporter(true);
         String study7Id = "7";
         String study8Id = "8";
@@ -301,10 +308,8 @@ public class VariantExporterTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_btaurus_umd31/files_2_0.json",
-            "/db-dump/eva_btaurus_umd31/variants_2_0.json"})
     public void mergeVcfHeaders() throws IOException {
+        insertBtaurusUmd31Data();
         VariantExporter variantExporter = new VariantExporter(false);
         List<String> cowStudyIds = Arrays.asList("PRJEB6119", "PRJEB7061");
         List<VariantSource> cowSources =
@@ -324,10 +329,8 @@ public class VariantExporterTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_btaurus_umd31/files_2_0.json",
-            "/db-dump/eva_btaurus_umd31/variants_2_0.json"})
     public void mergeVcfHeadersExcludingCsq() throws IOException {
+        insertBtaurusUmd31Data();
         VariantExporter variantExporter = new VariantExporter(true);
         List<String> cowStudyIds = Arrays.asList("PRJEB6119", "PRJEB7061");
         List<VariantSource> cowSources =
@@ -346,53 +349,45 @@ public class VariantExporterTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
     public void testExportOneStudy() throws Exception {
+        insertHsapiensGrch37Data();
         List<String> studies = Collections.singletonList("8");
         String region = "20:60000-69000";
         QueryParams query = new QueryParams();
         query.setStudies(studies);
         query.setRegion(region);
         List<VariantContext> exportedVariants = exportAndCheck(variantSourceService, variantService, query, studies,
-                                                               Collections.emptyList());
+                Collections.emptyList());
         checkExportedVariants(variantService, query, exportedVariants);
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-            "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
     public void testExportTwoStudies() throws Exception {
+        insertHsapiensGrch37Data();
         List<String> studies = Arrays.asList("7", "8");
         String region = "20:61000-69000";
         QueryParams query = new QueryParams();
         query.setRegion(region);
         List<VariantContext> exportedVariants = exportAndCheck(variantSourceService, variantService, query, studies,
-                                                               Collections.emptyList());
+                Collections.emptyList());
         checkExportedVariants(variantService, query, exportedVariants);
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_btaurus_umd31/files_2_0.json",
-            "/db-dump/eva_btaurus_umd31/variants_2_0.json"})
-    public void testExportOneStudyThatHasNotSourceLines() throws Exception {
+    public void testExportOneStudyThatHasNotSourceLines() {
+        insertBtaurusUmd31Data();
         List<String> studies = Collections.singletonList("PRJEB6119");
         String region = "21:820000-830000";
         QueryParams query = new QueryParams();
         query.setRegion(region);
         query.setStudies(studies);
         exportAndCheck(variantSourceService, variantService, query, studies, Collections.emptyList(),
-                       4);
+                4);
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
     public void testExportOneFileFromOneStudyThatHasTwoFiles() throws Exception {
+        insertOariesOarv31Data();
         List<String> studies = Collections.singletonList(SHEEP_STUDY_ID);
         List<String> files = Collections.singletonList(SHEEP_FILE_1_ID);
         String region = "14:10250000-10259999";
@@ -407,7 +402,6 @@ public class VariantExporterTest {
                         v -> v.getGenotypes().size() == NUMBER_OF_SAMPLES_IN_SHEEP_FILES);
         assertTrue(samplesNumberCorrect);
     }
-
 
 
     private List<VariantContext> exportAndCheck(VariantSourceService variantSourceService,
@@ -443,7 +437,7 @@ public class VariantExporterTest {
 
         List<Region> regions = Collections.singletonList(new Region(queryParams.getRegion()));
         List<VariantWithSamplesAndAnnotation> variants = variantService.findByRegionsAndComplexFilters(
-                regions, filters, null , Collections.emptyList(), new PageRequest(0, 1000));
+                regions, filters, null, Collections.emptyList(), PageRequest.of(0, 1000));
 
         assertTrue(variants.size() > 0);
 
@@ -465,16 +459,16 @@ public class VariantExporterTest {
             if (v1.getReference().equals("")) {
                 // insertion
                 return v2.getAlternateAlleles()
-                         .contains(Allele.create(v2.getReference().getBaseString() + v1.getAlternate()));
+                        .contains(Allele.create(v2.getReference().getBaseString() + v1.getAlternate()));
             } else if (v1.getAlternate().equals("")) {
                 // deletion
                 return v2.getAlternateAlleles().stream()
-                         .anyMatch(alt -> v2.getReference().getBaseString()
-                                            .equals(alt.getBaseString() + v1.getReference()));
+                        .anyMatch(alt -> v2.getReference().getBaseString()
+                                .equals(alt.getBaseString() + v1.getReference()));
             } else {
                 return v1.getReference().equals(v2.getReference().getBaseString()) && v2.getAlternateAlleles()
-                                                                                        .contains(Allele.create(
-                                                                                                v1.getAlternate()));
+                        .contains(Allele.create(
+                                v1.getAlternate()));
             }
         }
         return false;

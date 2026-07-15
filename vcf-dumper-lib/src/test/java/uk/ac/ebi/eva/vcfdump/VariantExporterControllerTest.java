@@ -15,27 +15,26 @@
  */
 package uk.ac.ebi.eva.vcfdump;
 
-import com.lordofthejars.nosqlunit.annotation.UsingDataSet;
-import com.lordofthejars.nosqlunit.mongodb.MongoDbRule;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockserver.client.server.MockServerClient;
-import org.mockserver.junit.MockServerRule;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockserver.client.MockServerClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.mongodb.core.MongoOperations;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.testcontainers.containers.MockServerContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 import uk.ac.ebi.eva.commons.core.models.Region;
 import uk.ac.ebi.eva.commons.core.models.ws.VariantWithSamplesAndAnnotation;
 import uk.ac.ebi.eva.commons.mongodb.entities.VariantMongo;
@@ -43,6 +42,8 @@ import uk.ac.ebi.eva.commons.mongodb.entities.subdocuments.AnnotationIndexMongo;
 import uk.ac.ebi.eva.commons.mongodb.repositories.VariantRepository;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantSourceService;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantWithSamplesAndAnnotationsService;
+import uk.ac.ebi.eva.vcfdump.utils.MongoTestContainerHelper;
+import uk.ac.ebi.eva.vcfdump.utils.MongoTestDataLoader;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -63,31 +64,18 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
 
-import static com.lordofthejars.nosqlunit.mongodb.MongoDbRule.MongoDbRuleBuilder.newMongoDbRule;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.util.AssertionErrors.assertFalse;
 import static uk.ac.ebi.eva.vcfdump.VariantExporterController.ANNOTATION_EXCLUSION;
 import static uk.ac.ebi.eva.vcfdump.VariantToVariantContextConverter.ANNOTATION_KEY;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+@Testcontainers
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = {MongoRepositoryTestConfiguration.class})
-@UsingDataSet(locations = {
-        "/db-dump/eva_hsapiens_grch37/files_2_0.json",
-        "/db-dump/eva_hsapiens_grch37/variants_2_0.json"})
-public class VariantExporterControllerTest {
-
-    @Autowired
-    private MongoOperations mongoOperations;
-
-    @Autowired
-    private ApplicationContext applicationContext;
-
-    @Rule
-    public MongoDbRule mongoDbRule = newMongoDbRule().defaultSpringMongoDb("test-db");
-
-
+public class VariantExporterControllerTest extends MongoTestContainerHelper {
     private static final String OUTPUT_DIR = "/tmp/";
     private static final String SHEEP_STUDY_ID = "PRJEB14685";
     private static final String SHEEP_FILE_1_ID = "ERZ324588";
@@ -99,6 +87,11 @@ public class VariantExporterControllerTest {
 
     private static final Map<String, String> databaseMapping = new HashMap<>();
 
+    @Container
+    static MockServerContainer mockServerContainer =
+            new MockServerContainer(DockerImageName.parse("mockserver/mockserver:5.15.0"));
+
+    private MockServerClient mockServerClient;
 
     @Autowired
     private VariantWithSamplesAndAnnotationsService variantService;
@@ -109,6 +102,14 @@ public class VariantExporterControllerTest {
     @Autowired
     private VariantSourceService variantSourceService;
 
+    @Autowired
+    private MongoTemplate mongoTemplate;
+
+    @Autowired
+    private ResourceLoader resourceLoader;
+
+    private MongoTestDataLoader mongoTestDataLoader;
+
     private static final Logger logger = LoggerFactory.getLogger(VariantExporterControllerTest.class);
 
     private QueryParams emptyFilter = new QueryParams();
@@ -117,13 +118,8 @@ public class VariantExporterControllerTest {
 
     private static Properties evaTestProperties;
 
-    @Rule
-    public MockServerRule mockServerRule = new MockServerRule(this);
-
-    private MockServerClient mockServerClient;
-
-    @BeforeClass
-    public static void setUpClass() throws IOException{
+    @BeforeAll
+    public static void setUpClass() throws IOException {
 
         evaTestProperties = new Properties();
         evaTestProperties.load(VariantExporterControllerTest.class.getResourceAsStream("/properties/evaTest.properties"));
@@ -135,16 +131,36 @@ public class VariantExporterControllerTest {
         databaseMapping.put(SHEEP_TEST_DB, UUID.randomUUID().toString());
     }
 
-    @Before
+    @BeforeEach
     public void setUp() {
+        mockServerClient = new MockServerClient(mockServerContainer.getHost(), mockServerContainer.getServerPort());
+
         MockServerClientHelper.hSapiensGrch37(mockServerClient, databaseMapping.get(HUMAN_TEST_DB));
         MockServerClientHelper.oAriesOarv31(mockServerClient, databaseMapping.get(SHEEP_TEST_DB));
 
-        int port = mockServerRule.getPort();
-        evaTestProperties.setProperty("eva.rest.url", String.format("http://localhost:%s/eva/webservices/rest/", port));
+        evaTestProperties.setProperty("eva.rest.url", String.format("http://%s:%s/eva/webservices/rest/",
+                mockServerContainer.getHost(), mockServerContainer.getServerPort()));
+
+        mongoTemplate.getDb().drop();
+        mongoTestDataLoader = new MongoTestDataLoader(mongoTemplate, resourceLoader);
+        mongoTestDataLoader.load("/db-dump/eva_hsapiens_grch37/files_2_0.json");
+        mongoTestDataLoader.load("/db-dump/eva_hsapiens_grch37/variants_2_0.json");
     }
 
-    @After
+    private void insertData(String... dataFiles) {
+        for (String data : dataFiles) {
+            mongoTestDataLoader.load(data);
+        }
+    }
+
+    private void insertOariesOarv31Data() {
+        insertData("/db-dump/eva_oaries_oarv31/files_2_0.json",
+                "/db-dump/eva_oaries_oarv31/annotations_2_0.json",
+                "/db-dump/eva_oaries_oarv31/annotationMetadata_2_0.json",
+                "/db-dump/eva_oaries_oarv31/variants_2_0.json");
+    }
+
+    @AfterEach
     public void tearDown() {
         testOutputFiles.forEach(f -> new File(f).delete());
     }
@@ -157,9 +173,9 @@ public class VariantExporterControllerTest {
 
         VariantExporterController controller = new VariantExporterController(
                 databaseMapping.get(HUMAN_TEST_DB), variantSourceService, variantService,
-                                                                             studies, Collections.emptyList(),
-                                                                             OUTPUT_DIR, evaTestProperties,
-                                                                             emptyFilter);
+                studies, Collections.emptyList(),
+                OUTPUT_DIR, evaTestProperties,
+                emptyFilter);
         controller.run();
 
         ////////// checks
@@ -180,9 +196,9 @@ public class VariantExporterControllerTest {
         List<String> studies = Arrays.asList(study7, study8);
 
         VariantExporterController controller = new VariantExporterController(databaseMapping.get(HUMAN_TEST_DB),
-                                                                             variantSourceService, variantService,
-                                                                             studies, Collections.emptyList(),
-                                                                             OUTPUT_DIR, evaTestProperties, emptyFilter);
+                variantSourceService, variantService,
+                studies, Collections.emptyList(),
+                OUTPUT_DIR, evaTestProperties, emptyFilter);
         controller.run();
 
         ////////// checks
@@ -197,11 +213,9 @@ public class VariantExporterControllerTest {
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
-    public void testVcfExportOneFileFromOneStudyThatHasTwoFiles()
-            throws URISyntaxException, IOException {
+    public void testVcfExportOneFileFromOneStudyThatHasTwoFiles() throws URISyntaxException, IOException {
+        insertData("/db-dump/eva_oaries_oarv31/files_2_0.json",
+                "/db-dump/eva_oaries_oarv31/variants_2_0.json");
         QueryParams params = new QueryParams();
         List<String> studies = Collections.singletonList(SHEEP_STUDY_ID);
         List<String> files =
@@ -287,10 +301,10 @@ public class VariantExporterControllerTest {
 
         long variantCountInDb = 0;
         List<VariantMongo> variants = variantRepository.findByRegionsAndComplexFilters(Collections.singletonList(
-                new Region("20",60000L, 61000L)), null, null, new PageRequest(0, 1000));
-        for (VariantMongo variant: variants) {
+                new Region("20", 60000L, 61000L)), null, null, PageRequest.of(0, 1000));
+        for (VariantMongo variant : variants) {
             Set<AnnotationIndexMongo> annotSet = variant.getIndexedAnnotations();
-            for (AnnotationIndexMongo annot: annotSet) {
+            for (AnnotationIndexMongo annot : annotSet) {
                 if (annot.getSoAccessions().contains(1628)) {
                     variantCountInDb++;
                     break;
@@ -325,7 +339,7 @@ public class VariantExporterControllerTest {
         testOutputFiles.add(outputFile);
         assertEquals(0, controller.getFailedVariants());   // test file should not have failed variants
 
-        List<Region> regionList = Arrays.asList(new Region("20",61000L, 66000L), new Region("20",63000L, 69000L));
+        List<Region> regionList = Arrays.asList(new Region("20", 61000L, 66000L), new Region("20", 63000L, 69000L));
         long variantCountInDb = variantRepository.countByRegionsAndComplexFilters(regionList, Collections.emptyList());
 
         assertTrue(variantCountInDb != 0);
@@ -356,7 +370,7 @@ public class VariantExporterControllerTest {
         assertTrue(regions.contains(new Region("1", 2500L, 2500L)));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMissingStudy() throws Exception {
         List<String> studies = Arrays.asList("7", "9"); // study 9 doesn't exist
 
@@ -365,30 +379,31 @@ public class VariantExporterControllerTest {
                 variantSourceService, variantService,
                 studies, Collections.emptyList(), OUTPUT_DIR, evaTestProperties, new QueryParams());
 
-        controller.run();
+        assertThrows(IllegalArgumentException.class, controller::run);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void nullDbnameThrowsIllegalArgumentException() throws Exception {
+    @Test
+    public void nullDbnameThrowsIllegalArgumentException() {
         List<String> studies = Collections.singletonList("8");
-        new VariantExporterController(null, variantSourceService, variantService, studies, Collections.emptyList(), OUTPUT_DIR, evaTestProperties,
-                                      emptyFilter);
+        assertThrows(IllegalArgumentException.class, () ->
+                new VariantExporterController(null, variantSourceService, variantService, studies,
+                        Collections.emptyList(), OUTPUT_DIR, evaTestProperties, emptyFilter));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void emtpyStudiesThrowsIllegalArgumentException() throws Exception {
-        new VariantExporterController(databaseMapping.get(HUMAN_TEST_DB), variantSourceService, variantService,
-                                      Collections.emptyList(),
-                                      Collections.emptyList(), OUTPUT_DIR, evaTestProperties, emptyFilter);
+    @Test
+    public void emtpyStudiesThrowsIllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> new VariantExporterController(databaseMapping.get(HUMAN_TEST_DB), variantSourceService, variantService,
+                Collections.emptyList(),
+                Collections.emptyList(), OUTPUT_DIR, evaTestProperties, emptyFilter));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void nullOutputDirThrowsIllegalArgumentException() throws Exception {
+    @Test
+    public void nullOutputDirThrowsIllegalArgumentException() {
         List<String> studies = Collections.singletonList("8");
         String outputDir = null;
-        new VariantExporterController(databaseMapping.get(HUMAN_TEST_DB), variantSourceService, variantService,
-                                      studies, Collections.emptyList(),
-                                      outputDir, evaTestProperties, emptyFilter);
+        assertThrows(IllegalArgumentException.class, () ->
+                new VariantExporterController(databaseMapping.get(HUMAN_TEST_DB), variantSourceService, variantService,
+                        studies, Collections.emptyList(), outputDir, evaTestProperties, emptyFilter));
     }
 
     private void assertEqualLinesFilesAndDB(String fileName, long variantCountInD) throws IOException {
@@ -406,7 +421,7 @@ public class VariantExporterControllerTest {
             if (line.charAt(0) != '#') {
                 String[] fields = line.split("\t", 6);
                 VariantWithSamplesAndAnnotation variant = new VariantWithSamplesAndAnnotation(fields[0], Integer.parseInt(fields[1]), Integer.parseInt(fields[1]),
-                                                                      fields[3], fields[4], null);
+                        fields[3], fields[4], null);
                 //variant.setEnd(variant.getStart() + variant.getLength() - 1);
                 if (variant.getAlternate().substring(0, 1).equals(variant.getReference().substring(0, 1))) {
                     //variant.setAlternate(variant.getAlternate().substring(1));
@@ -434,60 +449,46 @@ public class VariantExporterControllerTest {
                 }
                 lastContig = variant.getContig();
                 assertFalse("The variants should by grouped by contig in the vcf output",
-                            finishedContigs.contains(lastContig));
+                        finishedContigs.contains(lastContig));
                 previousStart = -1;
             }
-            assertTrue("The vcf is not sorted by coordinate: " + variant.getContig() + ":" + variant.getStart() + ":" +
-                               variant.getReference() + "->" + variant
-                               .getAlternateAlleles() + "; Previous variant start: " + previousStart,
-                       variant.getStart() >= previousStart);
+            assertTrue(variant.getStart() >= previousStart,
+                    "The vcf is not sorted by coordinate: " + variant.getContig() + ":" + variant.getStart() + ":" +
+                            variant.getReference() + "->" + variant
+                            .getAlternateAlleles() + "; Previous variant start: " + previousStart);
+
             previousStart = variant.getStart();
         }
 
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotations_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotationMetadata_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
-    public void checkInvalidExclusion() throws URISyntaxException, IOException {
-        assertExclusion(Collections.singletonList("invalidField"),
-                        infoField -> infoField.contains(ANNOTATION_KEY + "="));
+    @Test
+    public void checkInvalidExclusion() {
+        insertOariesOarv31Data();
+        assertThrows(IllegalArgumentException.class, () ->
+                assertExclusion(Collections.singletonList("invalidField"),
+                        infoField -> infoField.contains(ANNOTATION_KEY + "=")));
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotations_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotationMetadata_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
     public void checkCsqIsIncludedUsingNull() throws URISyntaxException, IOException {
+        insertOariesOarv31Data();
         assertExclusion(null,
-                        infoField -> infoField.contains(ANNOTATION_KEY + "="));
+                infoField -> infoField.contains(ANNOTATION_KEY + "="));
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotations_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotationMetadata_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
     public void checkCsqIsIncluded() throws URISyntaxException, IOException {
+        insertOariesOarv31Data();
         assertExclusion(Collections.emptyList(),
-                        infoField -> infoField.contains(ANNOTATION_KEY + "="));
+                infoField -> infoField.contains(ANNOTATION_KEY + "="));
     }
 
     @Test
-    @UsingDataSet(locations = {
-            "/db-dump/eva_oaries_oarv31/files_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotations_2_0.json",
-            "/db-dump/eva_oaries_oarv31/annotationMetadata_2_0.json",
-            "/db-dump/eva_oaries_oarv31/variants_2_0.json"})
     public void checkCsqIsExcluded() throws URISyntaxException, IOException {
+        insertOariesOarv31Data();
         assertExclusion(Collections.singletonList(ANNOTATION_EXCLUSION),
-                        infoField -> !infoField.contains(ANNOTATION_KEY + "="));
+                infoField -> !infoField.contains(ANNOTATION_KEY + "="));
     }
 
     private void assertExclusion(List<String> exclusions, Predicate<String> exclusionTest)
