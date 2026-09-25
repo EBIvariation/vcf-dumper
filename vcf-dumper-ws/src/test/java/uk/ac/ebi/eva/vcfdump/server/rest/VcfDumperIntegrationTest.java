@@ -32,8 +32,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
@@ -54,6 +59,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -82,6 +88,12 @@ public class VcfDumperIntegrationTest extends MongoTestContainerHelper {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @LocalServerPort
+    private int port;
+
+    @Value("${server.servlet.context-path}")
+    private String contextPath;
 
     @BeforeEach
     public void setUp() throws Exception {
@@ -140,6 +152,31 @@ public class VcfDumperIntegrationTest extends MongoTestContainerHelper {
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertUrls(response, 3000000, 3010000);
+        assertAllUrlsStartWith(response, "http://localhost:" + port + contextPath + "/v1/variants/");
+    }
+
+    /**
+     * Behind the ingress, the URLs returned must use the public scheme, host and port (from the X-Forwarded-* headers)
+     */
+    @Test
+    public void getHtsgetUrlsBehindProxy() {
+        String url = "/v1/variants/PRJEB9799?format=VCF&referenceName=1&species=ecaballus_20&start=3000000&end=3010000";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Forwarded-Proto", "https");
+        headers.set("X-Forwarded-Host", "www.example.org");
+        headers.set("X-Forwarded-Port", "443");
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers),
+                String.class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertUrls(response, 3000000, 3010000);
+        assertAllUrlsStartWith(response, "https://www.example.org" + contextPath + "/v1/variants/");
+    }
+
+    private void assertAllUrlsStartWith(ResponseEntity<String> response, String expectedPrefix) {
+        for (UrlResponse urlResponse : getUrlsFromResponse(response).getUrls()) {
+            assertTrue(urlResponse.getUrl().startsWith(expectedPrefix),
+                       urlResponse.getUrl() + " does not start with " + expectedPrefix);
+        }
     }
 
     private void assertUrls(ResponseEntity<String> response, int start, int end) {

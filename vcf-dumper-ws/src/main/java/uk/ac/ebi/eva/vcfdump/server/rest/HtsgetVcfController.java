@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import uk.ac.ebi.eva.commons.core.models.Region;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantSourceService;
 import uk.ac.ebi.eva.commons.mongodb.services.VariantWithSamplesAndAnnotationsService;
@@ -122,9 +123,9 @@ public class HtsgetVcfController {
         }
 
         List<Region> regionList = controller.divideChromosomeInChunks(referenceName, start, end);
-        HtsGetResponse htsGetResponse = new HtsGetResponse(VCF, request.getServerName() + ":" + request.getServerPort(),
-                request.getContextPath(), id, referenceName, species,
-                regionList);
+        // Scheme, host, port and prefix honour the X-Forwarded-* headers when running behind the ingress
+        String baseUrl = ServletUriComponentsBuilder.fromContextPath(request).toUriString();
+        HtsGetResponse htsGetResponse = new HtsGetResponse(VCF, baseUrl, id, referenceName, species, regionList);
         return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("htsget", htsGetResponse));
     }
 

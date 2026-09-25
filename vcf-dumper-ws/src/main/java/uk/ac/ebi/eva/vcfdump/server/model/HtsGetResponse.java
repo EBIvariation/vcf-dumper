@@ -29,11 +29,14 @@ public class HtsGetResponse {
     public HtsGetResponse() {
     }
 
-    public HtsGetResponse(String format, String host, String contextPath, String id, String chromosome,
-                          String species,
+    /**
+     * @param baseUrl Public URL of the service, including scheme, host and context path
+     *                (e.g. https://www.ebi.ac.uk/eva/webservices/vcf-dumper), without a trailing slash
+     */
+    public HtsGetResponse(String format, String baseUrl, String id, String chromosome, String species,
                           List<Region> regions) {
         this.format = format;
-        this.urls = constructUrls(host, contextPath, id, chromosome, species, regions);
+        this.urls = constructUrls(baseUrl, id, chromosome, species, regions);
     }
 
     public String getFormat() {
@@ -44,19 +47,19 @@ public class HtsGetResponse {
         return urls;
     }
 
-    private List<UrlResponse> constructUrls(String host, String contextPath, String id, String chromosome,
-                                            String species, List<Region> regions) {
+    private List<UrlResponse> constructUrls(String baseUrl, String id, String chromosome, String species,
+                                            List<Region> regions) {
 
         List<UrlResponse> resUrls = new ArrayList<>();
 
-        String headerUrl = host + contextPath + "/v1/variants/headers?species=" + species + "&studies=" + id;
+        String headerUrl = baseUrl + "/v1/variants/headers?species=" + species + "&studies=" + id;
         UrlResponse headerUrlResponse = new UrlResponse(headerUrl, "header");
         resUrls.add(headerUrlResponse);
 
-        String baseUrl = host + contextPath + "/v1/variants/block?studies=" + id + "&species=" + species + "&region=" + chromosome + ":";
+        String blockBaseUrl = baseUrl + "/v1/variants/block?studies=" + id + "&species=" + species + "&region=" + chromosome + ":";
 
         for (Region region : regions) {
-            String url = baseUrl + region.getStart() + "-" + region.getEnd();
+            String url = blockBaseUrl + region.getStart() + "-" + region.getEnd();
             UrlResponse bodyHeaderResponse = new UrlResponse(url, "body");
             resUrls.add(bodyHeaderResponse);
         }

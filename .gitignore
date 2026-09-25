@@ -37,3 +37,11 @@ build/
 
 ### Mac OS ###
 .DS_Store
+### flatten-maven-plugin ###
+.flattened-pom.xml
+
+### Local runtime configuration (MongoDB credentials) ###
+**/config/application.properties
+
+### IntelliJ files###
+/.idea/*
