@@ -3,30 +3,12 @@
 The VCF dumper is a web service that supports some queries from the [EVA core REST Webservices API](https://github.com/EBIvariation/eva-ws/wiki#variants) and writes the output in [VCF format](https://samtools.github.io/hts-specs/VCFv4.3.pdf).
 
 ## Dependencies
-The VCF dumper has been implemented in Java 8 and uses Maven build system.
+The VCF dumper has been implemented in Java 21 and uses Maven build system.
 
-In order to run, it needs access to a MongoDB 3.x database instance. The easiest way to set one up in a local machine is [using Docker](https://hub.docker.com/_/mongo/).
+In order to run, it needs access to a MongoDB database instance. The easiest way to set one up in a local machine is [using Docker](https://hub.docker.com/_/mongo/).
 
 The project dependencies are in maven central.
 
-## Build
-*Maven profiles* can be used to populate [eva.properties](vcf-dumper-lib/src/main/resources/eva.properties) with the MongoDB server details when the project is built. Not all properties are mandatory. This is an example of a maven profile for a local MongoDB server with no authentication:
-
-```
-<profile>
-    <id>vcf-dumper-localhost</id>
-    <properties>
-        <eva.mongo.host>localhost:27017</eva.mongo.host>
-        <eva.mongo.user></eva.mongo.user>
-        <eva.mongo.passwd></eva.mongo.passwd>
-        <eva.mongo.auth.db></eva.mongo.auth.db>
-        <eva.mongo.collections.variants>variants</eva.mongo.collections.variants>
-        <eva.mongo.collections.files>files</eva.mongo.collections.files>
-    </properties>
-</profile>
-```
-
-To build the project artifacts, execute `mvn package -P *chosen-profle*` in the vcf-dumper directory. An executable JAR will be generated in *vcf-dumper-cli/target* and another one in *vcf-dumper-ws/target*.
 
 ## Run the web service
 The web service (*vcf-dumper-ws*) is a self-contained Spring Boot application (embedded Tomcat, Java 21), meant to be run as a container in Kubernetes. It listens on port 8080 under the context path `/eva/webservices/vcf-dumper`, and logs to the standard output only.
@@ -57,10 +39,12 @@ The image can also be built on its own, from the repository root: `docker build 
 
 Health probes are available at `/eva/webservices/vcf-dumper/actuator/health` (with `/liveness` and `/readiness` for the Kubernetes probes), and the API documentation at `/eva/webservices/vcf-dumper/swagger-ui.html`.
 
+The Kubernetes manifests for deploying it are maintained in the [eva-k8s](https://github.com/EBIvariation/eva-k8s) repository, under `k8s-manifests/vcf-dumper-ws`.
+
 ## Test
 In order to test the VCF dumper, a MongoDB server containing variants in [EVA format](https://github.com/EBIvariation/eva-pipeline/wiki/MongoDB-schema) is needed. Some small test databases dumps are provided in the [test resouces](vcf-dumper-lib/src/test/resources/db-dump). Those dumps can be imported to a MongoDB server using the `mongorestore` command. **Those databases can be deleted if the tests are executed** (e.g., by `maven package`). There are several solutions for this: rename those databases, skip the tests when executing maven or execute *mavenrestore* after building the artifacts.
 
-Once we got a server with data, and a JAR or WAR artifact pointing to it, we can try some queries.
+Once we got a server with data, and a JAR artifact pointing to it, we can try some queries.
 
 ### Queries
 The VCF dumper has two main interfaces that can be used to execute queries over the archive and get the result in VCF format:
@@ -68,7 +52,7 @@ The VCF dumper has two main interfaces that can be used to execute queries over 
 * **Command Line Interface**: For EVA internal use only. Allows to dump all the variants for a given study(ies) and file(s). It does not include region filters
 
 #### Webservices
-The Webservices API currently comprises a single endpoint: `{baseURL}/{regionId}/variants`.
+The Webservices API comprises the segments endpoint described below (`{baseURL}/v1/segments/{regionId}/variants`), plus an [htsget](http://samtools.github.io/hts-specs/htsget.html)-compliant endpoint under `{baseURL}/v1/variants` — see the Swagger UI (linked in [Run the web service](#run-the-web-service)) for its parameters. This section documents the segments endpoint: `{baseURL}/v1/segments/{regionId}/variants`.
 {regionId} can be a single region or a comma separated list of regions. Each region is a composed of a chromosome name, and optionally a ':' character followed by natural numbers pair (start and end), separated by '-'. Some examples of valid regions are:
 * `1`
 * `chr1`
