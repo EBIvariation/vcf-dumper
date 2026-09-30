@@ -53,6 +53,7 @@ The VCF dumper has two main interfaces that can be used to execute queries over 
 
 #### Webservices
 The Webservices API comprises the segments endpoint described below (`{baseURL}/v1/segments/{regionId}/variants`), plus an [htsget](http://samtools.github.io/hts-specs/htsget.html)-compliant endpoint under `{baseURL}/v1/variants` — see the Swagger UI (linked in [Run the web service](#run-the-web-service)) for its parameters. This section documents the segments endpoint: `{baseURL}/v1/segments/{regionId}/variants`.
+
 {regionId} can be a single region or a comma separated list of regions. Each region is a composed of a chromosome name, and optionally a ':' character followed by natural numbers pair (start and end), separated by '-'. Some examples of valid regions are:
 * `1`
 * `chr1`
