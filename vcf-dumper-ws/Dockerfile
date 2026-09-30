@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 RUN groupadd -r vcf_dumper_ws && useradd -r -g vcf_dumper_ws vcf_dumper_ws
 
 # Create config directory for runtime application.properties mount
-RUN mkdir -p /app/config && chown -R vcf_dumper_ws:vcf_dumper_ws /app
+RUN mkdir -p /app/config /tmp/tomcat/logs && chown -R vcf_dumper_ws:vcf_dumper_ws /app /tmp/tomcat
 
 # Copy the JAR file from build stage
 COPY --from=build /app/vcf-dumper-ws/target/*.jar app.jar
