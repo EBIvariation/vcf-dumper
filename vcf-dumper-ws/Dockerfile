@@ -8,8 +8,6 @@ WORKDIR /app
 # Copy the full project
 COPY . .
 
-# Build only vcf-dumper-ws and its required dependencies (vcf-dumper-lib).
-# -DskipTests (rather than -Dmaven.test.skip) because vcf-dumper-ws depends on the test-jar of vcf-dumper-lib
 RUN mvn -B -pl vcf-dumper-ws -am clean package -DskipTests -Dmaven.gitcommitid.skip=true
 
 # Runtime stage
@@ -43,7 +41,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # JVM options for containerized environments
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
 
-# The MongoDB connection details are read from /app/config/application.properties, which must be mounted at runtime.
-# 'exec' makes the JVM PID 1 so that it receives SIGTERM and can shut down gracefully (otherwise 'sh' swallows it and
-# the container is killed after the termination grace period)
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
