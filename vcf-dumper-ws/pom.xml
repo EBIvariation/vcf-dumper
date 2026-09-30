@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>vcf-dumper-ws</artifactId>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
@@ -32,6 +32,10 @@
             <groupId>uk.ac.ebi.eva</groupId>
             <artifactId>vcf-dumper-lib</artifactId>
             <version>${revision}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -63,11 +67,17 @@
     </dependencies>
 
     <build>
-        <finalName>vcf-dumper</finalName>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

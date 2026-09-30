@@ -1,0 +1,38 @@
+services:
+  vcf-dumper-ws:
+    build:
+      context: ..
+      dockerfile: vcf-dumper-ws/Dockerfile
+    image: vcf-dumper-ws:local
+    ports:
+      # Host port can be changed with VCF_DUMPER_WS_PORT if 8080 is already in use
+      - "${VCF_DUMPER_WS_PORT:-8080}:8080"
+    volumes:
+      - ./local-config/application.properties:/app/config/application.properties:ro
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/eva/webservices/vcf-dumper/actuator/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  mongodb:
+    image: mongo:6.0
+    # Not published on the host, only vcf-dumper-ws needs it. To load data:
+    #   docker compose -f vcf-dumper-ws/docker-compose.yaml exec mongodb mongosh -u mongo_user -p mongo_pass
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongo_user
+      - MONGO_INITDB_ROOT_PASSWORD=mongo_pass
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:
