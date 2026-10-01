@@ -15,7 +15,7 @@ include:
 # The manifests are in eva-k8s/k8s-manifests/vcf-dumper-ws. SERVICE_NAME is also the name of the deployment and of the
 # namespace, and the name of the property set in eva-k8s/scripts/maven-settings-to-properties.py.
 variables:
-  IMAGE_REPOSITORY: dockerhub.ebi.ac.uk/ebivariation/vcf-dumper-ws
+  IMAGE_REPOSITORY: dockerhub.ebi.ac.uk/ebivariation/vcf-dumper
 
 # ============================================================================
 # PRODUCTION: Deploy on git tags
@@ -25,9 +25,8 @@ build:docker:prod:
   extends: .build_docker
   variables:
     SERVICE_NAME: vcf-dumper-ws
-    # The build context is the root of the repository: vcf-dumper-ws needs vcf-dumper-lib
     DOCKERFILE_PATH: vcf-dumper-ws/Dockerfile
-    IMAGE_TAG: $CI_COMMIT_TAG
+    IMAGE_TAG: vcf-dumper-ws-$CI_COMMIT_TAG
   only:
     - tags
 
@@ -37,7 +36,7 @@ deploy-to-cluster:prod:
     - build:docker:prod
   variables:
     SERVICE_NAME: vcf-dumper-ws
-    IMAGE_TAG: $CI_COMMIT_TAG
+    IMAGE_TAG: vcf-dumper-ws-$CI_COMMIT_TAG
     MAVEN_PROFILE: production
     K8S_MANIFEST_PATH: k8s-manifests/vcf-dumper-ws/overlays/prod
     KUBECONFIG_FILE: $KUBECONFIG_FILE_PROD
@@ -52,7 +51,7 @@ deploy-to-cluster:prod-fallback:
     - build:docker:prod
   variables:
     SERVICE_NAME: vcf-dumper-ws
-    IMAGE_TAG: $CI_COMMIT_TAG
+    IMAGE_TAG: vcf-dumper-ws-$CI_COMMIT_TAG
     MAVEN_PROFILE: production,production-fallback
     K8S_MANIFEST_PATH: k8s-manifests/vcf-dumper-ws/overlays/prod
     KUBECONFIG_FILE: $KUBECONFIG_FILE_PROD_FALLBACK
@@ -70,7 +69,7 @@ build:docker:dev:
   variables:
     SERVICE_NAME: vcf-dumper-ws
     DOCKERFILE_PATH: vcf-dumper-ws/Dockerfile
-    IMAGE_TAG: dev-$CI_COMMIT_SHORT_SHA
+    IMAGE_TAG: vcf-dumper-ws-dev-$CI_COMMIT_SHORT_SHA
   only:
     - main
 
@@ -80,7 +79,7 @@ deploy-to-cluster:dev:
     - build:docker:dev
   variables:
     SERVICE_NAME: vcf-dumper-ws
-    IMAGE_TAG: dev-$CI_COMMIT_SHORT_SHA
+    IMAGE_TAG: vcf-dumper-ws-dev-$CI_COMMIT_SHORT_SHA
     MAVEN_PROFILE: development
     K8S_MANIFEST_PATH: k8s-manifests/vcf-dumper-ws/overlays/dev
     KUBECONFIG_FILE: $KUBECONFIG_FILE_DEV
@@ -99,7 +98,7 @@ deploy-to-cluster:staging:
     - build:docker:dev
   variables:
     SERVICE_NAME: vcf-dumper-ws
-    IMAGE_TAG: dev-$CI_COMMIT_SHORT_SHA
+    IMAGE_TAG: vcf-dumper-ws-dev-$CI_COMMIT_SHORT_SHA
     MAVEN_PROFILE: production_processing
     K8S_MANIFEST_PATH: k8s-manifests/vcf-dumper-ws/overlays/staging
     KUBECONFIG_FILE: $KUBECONFIG_FILE_STAGING
