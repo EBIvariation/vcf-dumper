@@ -36,7 +36,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/eva/webservices/vcf-dumper/actuator/health/liveness || exit 1
+    CMD curl -f http://localhost:8080/eva/webservices/vcf-dumper/readyz || exit 1
 
 # JVM options for containerized environments
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
