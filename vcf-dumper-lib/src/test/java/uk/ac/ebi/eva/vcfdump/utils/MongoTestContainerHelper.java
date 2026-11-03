@@ -7,7 +7,7 @@ import org.testcontainers.containers.MongoDBContainer;
 
 public abstract class MongoTestContainerHelper {
 
-    private static final String MONGO_IMAGE = "mongo:6.0";
+    private static final String MONGO_IMAGE = "mongo:8.0.28";
 
     @ServiceConnection
     public static MongoDBContainer mongo = new MongoDBContainer(MONGO_IMAGE);
