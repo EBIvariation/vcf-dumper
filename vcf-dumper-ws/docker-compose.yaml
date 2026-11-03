@@ -20,7 +20,7 @@ services:
       start_period: 60s
 
   mongodb:
-    image: mongo:6.0
+    image: mongo:8.0.28
     # Not published on the host, only vcf-dumper-ws needs it. To load data:
     #   docker compose -f vcf-dumper-ws/docker-compose.yaml exec mongodb mongosh -u mongo_user -p mongo_pass
     environment:
