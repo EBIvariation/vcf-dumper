@@ -4,6 +4,8 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -11,6 +13,8 @@ import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
 
 @Configuration
 @EnableWebMvc
@@ -43,9 +47,13 @@ public class VcfDumperWSConfig implements WebMvcConfigurer {
                 .addResourceLocations("classpath:/META-INF/resources/webjars/");
     }
 
+    /**
+     * Advertise a relative server URL so Swagger UI calls the API using the scheme and host the page was loaded from.
+     */
     @Bean
-    public OpenAPI apiConfiguration() {
+    public OpenAPI apiConfiguration(@Value("${server.servlet.context-path:/}") String contextPath) {
         return new OpenAPI()
+                .servers(List.of(new Server().url(contextPath)))
                 .info(new Info()
                         .title("European Variation Archive VCF Dumper REST Web Services API")
                         .version("1.0")
