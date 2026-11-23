@@ -4,10 +4,12 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public abstract class MongoTestContainerHelper {
 
-    private static final String MONGO_IMAGE = "mongo:6.0";
+    private static final DockerImageName MONGO_IMAGE =
+            DockerImageName.parse("percona/percona-server-mongodb:8.0.38-16").asCompatibleSubstituteFor("mongo");
 
     @ServiceConnection
     public static MongoDBContainer mongo = new MongoDBContainer(MONGO_IMAGE);
